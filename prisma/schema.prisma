@@ -13,19 +13,82 @@ datasource db {
   provider = "postgresql"
 }
 
-enum Role {
+enum UserRole {
   ADMIN
   MANAGER
   BENEFICIARY
+}
+
+enum Resource {
+  USER
+  BENEFICIARY
+  HELP_REQUEST
+  BUDGET
+  AUDIT_LOG
+}
+
+enum Action {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  SUBMIT
+  APPROVE
+  REJECT
+  PAY
+  MANAGE
 }
 
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
   passwordHash String
-  role         Role     @default(BENEFICIARY)
+  roleId       String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  role Role @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  @@index([roleId])
   @@map("users")
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  code        UserRole @unique
+  label       String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users           User[]
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  resource    Resource
+  action      Action
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  rolePermissions RolePermission[]
+
+  @@unique([resource, action])
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  createdAt    DateTime @default(now())
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
 }

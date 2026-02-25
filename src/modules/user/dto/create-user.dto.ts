@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { BadRequestError } from '../../../core/errors/bad-request-error';
-import type { Role } from '../../../generated/prisma/enums';
+import type { UserRole } from '../../../generated/prisma/enums';
 
 const createUserSchema = z.object({
   email: z.string().email(),
@@ -8,13 +8,13 @@ const createUserSchema = z.object({
     .string()
     .min(6, 'Password must contain at least 6 characters')
     .regex(/[A-Z]/, 'Password must contain at least one uppercase letter'),
-  role: z.enum(['ADMIN', 'MANAGER', 'BENEFICIARY']).default('ADMIN'),
+  role: z.enum(['ADMIN', 'MANAGER', 'BENEFICIARY']).default('BENEFICIARY'),
 });
 
 export type CreateUserDto = {
   email: string;
   password: string;
-  role: Role;
+  role: UserRole;
 };
 
 export function parseCreateUserDto(payload: unknown): CreateUserDto {

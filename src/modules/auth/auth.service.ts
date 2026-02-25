@@ -2,9 +2,10 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import type { SignOptions } from 'jsonwebtoken';
 import { env } from '../../core/config/env';
+import { BadRequestError } from '../../core/errors/bad-request-error';
 import { ConflictError } from '../../core/errors/conflict-error';
 import { UnauthorizedError } from '../../core/errors/unauthorized-error';
-import type { Role } from '../../generated/prisma/enums';
+import type { UserRole } from '../../generated/prisma/enums';
 import type { PrismaService } from '../prisma/prisma.service';
 import type { LoginDto } from './dto/login.dto';
 import type { LoginResponseDto } from './dto/login-response.dto';
@@ -25,23 +26,32 @@ export class AuthService {
       throw new ConflictError('Email already exists');
     }
 
+    const roleId = await this.resolveRoleId(input.role);
     const passwordHash = await bcrypt.hash(input.password, PASSWORD_SALT_ROUNDS);
     const user = await this.prismaService.user.create({
       data: {
         email: input.email,
         passwordHash,
-        role: input.role,
+        roleId,
       },
       select: {
         id: true,
         email: true,
-        role: true,
+        role: {
+          select: {
+            code: true,
+          },
+        },
       },
     });
 
     return {
-      accessToken: this.createAccessToken(user.id, user.email, user.role),
-      user,
+      accessToken: this.createAccessToken(user.id, user.email, user.role.code),
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role.code,
+      },
     };
   }
 
@@ -51,7 +61,11 @@ export class AuthService {
       select: {
         id: true,
         email: true,
-        role: true,
+        role: {
+          select: {
+            code: true,
+          },
+        },
         passwordHash: true,
       },
     });
@@ -66,16 +80,29 @@ export class AuthService {
     }
 
     return {
-      accessToken: this.createAccessToken(user.id, user.email, user.role),
+      accessToken: this.createAccessToken(user.id, user.email, user.role.code),
       user: {
         id: user.id,
         email: user.email,
-        role: user.role,
+        role: user.role.code,
       },
     };
   }
 
-  private createAccessToken(userId: string, email: string, role: Role): string {
+  private async resolveRoleId(roleCode: UserRole): Promise<string> {
+    const role = await this.prismaService.role.findUnique({
+      where: { code: roleCode },
+      select: { id: true },
+    });
+
+    if (!role) {
+      throw new BadRequestError(`Role "${roleCode}" is not configured`);
+    }
+
+    return role.id;
+  }
+
+  private createAccessToken(userId: string, email: string, role: UserRole): string {
     const options: SignOptions = {
       expiresIn: env.JWT_EXPIRES_IN as SignOptions['expiresIn'],
     };

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { BadRequestError } from '../../../core/errors/bad-request-error';
-import type { Role } from '../../../generated/prisma/enums';
+import type { UserRole } from '../../../generated/prisma/enums';
 
 const editUserSchema = z
   .object({
@@ -22,7 +22,7 @@ const editUserSchema = z
 export type EditUserDto = {
   email?: string;
   password?: string;
-  role?: Role;
+  role?: UserRole;
 };
 
 export function parseEditUserDto(payload: unknown): EditUserDto {

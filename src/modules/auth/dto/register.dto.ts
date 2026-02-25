@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { BadRequestError } from '../../../core/errors/bad-request-error';
-import type { Role } from '../../../generated/prisma/enums';
+import type { UserRole } from '../../../generated/prisma/enums';
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -14,7 +14,7 @@ const registerSchema = z.object({
 export type RegisterDto = {
   email: string;
   password: string;
-  role: Extract<Role, 'MANAGER' | 'BENEFICIARY'>;
+  role: Extract<UserRole, 'MANAGER' | 'BENEFICIARY'>;
 };
 
 export function parseRegisterDto(payload: unknown): RegisterDto {

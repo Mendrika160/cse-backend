@@ -1,3 +1,9 @@
-import type { UserModel } from '../../../generated/prisma/models/User';
+import type { UserRole } from '../../../generated/prisma/enums';
 
-export type UserResponseDto = Pick<UserModel, 'id' | 'email' | 'role' | 'createdAt' | 'updatedAt'>;
+export type UserResponseDto = {
+  id: string;
+  email: string;
+  role: UserRole;
+  createdAt: Date;
+  updatedAt: Date;
+};
