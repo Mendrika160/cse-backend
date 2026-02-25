@@ -1,9 +1,11 @@
 import bcrypt from 'bcrypt';
 import { BadRequestError } from '../../core/errors/bad-request-error';
 import { ConflictError } from '../../core/errors/conflict-error';
+import { ForbiddenError } from '../../core/errors/forbidden-error';
 import { NotFoundError } from '../../core/errors/not-found-error';
 import type { UserRole } from '../../generated/prisma/enums';
 import type { PrismaService } from '../prisma/prisma.service';
+import type { AuthenticatedUser } from '../auth/auth.service';
 import type { CreateUserDto } from './dto/create-user.dto';
 import type { EditUserDto } from './dto/edit-user.dto';
 import type { UserResponseDto } from './dto/user-response.dto';
@@ -51,7 +53,14 @@ export class UserService {
     return this.toUserResponseDto(user);
   }
 
-  async create(input: CreateUserDto): Promise<UserResponseDto> {
+  async create(input: CreateUserDto, actor: AuthenticatedUser): Promise<UserResponseDto> {
+    if (actor.role !== 'ADMIN') {
+      throw new ForbiddenError('Only ADMIN can create users from this endpoint');
+    }
+    if (input.role !== 'BENEFICIARY') {
+      throw new BadRequestError('Only BENEFICIARY can be created from this endpoint');
+    }
+
     const existingUser = await this.prismaService.user.findUnique({
       where: { email: input.email },
       select: { id: true },
@@ -76,14 +85,35 @@ export class UserService {
     return this.toUserResponseDto(user);
   }
 
-  async edit(id: string, input: EditUserDto): Promise<UserResponseDto> {
+  async edit(id: string, input: EditUserDto, actor: AuthenticatedUser): Promise<UserResponseDto> {
     const existingById = await this.prismaService.user.findUnique({
       where: { id },
-      select: { id: true },
+      select: {
+        id: true,
+        role: {
+          select: {
+            code: true,
+          },
+        },
+      },
     });
 
     if (!existingById) {
       throw new NotFoundError('User not found');
+    }
+
+    const isSelfUpdate = id === actor.id;
+    if (isSelfUpdate && input.role && actor.role !== 'ADMIN') {
+      throw new ForbiddenError('You cannot change your own role');
+    }
+
+    const isAdminUpdatingAnotherUser = actor.role === 'ADMIN' && !isSelfUpdate;
+    if (isAdminUpdatingAnotherUser && existingById.role.code !== 'BENEFICIARY') {
+      throw new ForbiddenError('ADMIN can only update BENEFICIARY users from this endpoint');
+    }
+
+    if (isAdminUpdatingAnotherUser && input.role && input.role !== 'BENEFICIARY') {
+      throw new BadRequestError('ADMIN can only assign BENEFICIARY role from this endpoint');
     }
 
     if (input.email) {

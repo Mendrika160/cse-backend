@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { UnauthorizedError } from '../../core/errors/unauthorized-error';
 import { asyncHandler } from '../../core/http/async-handler';
 import { parseCreateUserDto } from './dto/create-user.dto';
 import { parseEditUserDto } from './dto/edit-user.dto';
@@ -22,15 +23,23 @@ export class UserController {
   });
 
   create = asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user) {
+      throw new UnauthorizedError('Authentication required');
+    }
+
     const input = parseCreateUserDto(req.body);
-    const user = await this.userService.create(input);
+    const user = await this.userService.create(input, req.user);
     res.status(201).json({ data: user });
   });
 
   edit = asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user) {
+      throw new UnauthorizedError('Authentication required');
+    }
+
     const id = parseUserIdParamDto(req.params);
     const input = parseEditUserDto(req.body);
-    const user = await this.userService.edit(id, input);
+    const user = await this.userService.edit(id, input, req.user);
     res.status(200).json({ data: user });
   });
 }

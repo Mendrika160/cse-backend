@@ -12,9 +12,14 @@ async function bootstrap(): Promise<void> {
   await prismaModule.connect();
 
   const healthRouter = createHealthModule();
-  const authRouter = createAuthModule(prismaModule.prismaService);
-  const userRouter = createUserModule(prismaModule.prismaService);
-  const app = createApp({ healthRouter, authRouter, userRouter });
+  const authModule = createAuthModule(prismaModule.prismaService);
+  const userRouter = createUserModule(prismaModule.prismaService, {
+    requireAuth: authModule.requireAuth,
+    requireRole: authModule.requireRole,
+    requirePermission: authModule.requirePermission,
+    requirePermissionOrSelf: authModule.requirePermissionOrSelf,
+  });
+  const app = createApp({ healthRouter, authRouter: authModule.router, userRouter });
 
   const server = app.listen(env.PORT, () => {
     logger.info({ port: env.PORT }, `Server running on http://localhost:${env.PORT}`);
