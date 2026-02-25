@@ -9,9 +9,10 @@ type AppModules = {
   healthRouter: Router;
   authRouter: Router;
   userRouter: Router;
+  helpRequestRouter: Router;
 };
 
-export function createApp({ healthRouter, authRouter, userRouter }: AppModules) {
+export function createApp({ healthRouter, authRouter, userRouter, helpRequestRouter }: AppModules) {
   const app = express();
   const apiRouter = express.Router();
 
@@ -23,6 +24,7 @@ export function createApp({ healthRouter, authRouter, userRouter }: AppModules) 
   apiRouter.use(healthRouter);
   apiRouter.use(authRouter);
   apiRouter.use(userRouter);
+  apiRouter.use(helpRequestRouter);
   app.use('/api', apiRouter);
 
   app.use(notFoundMiddleware);

@@ -4,6 +4,7 @@ import { env } from './core/config/env';
 import { logger } from './core/logger/logger';
 import { createAuthModule } from './modules/auth/auth.module';
 import { createHealthModule } from './modules/health/health.module';
+import { createHelpRequestModule } from './modules/help-request/help-request.module';
 import { createPrismaModule } from './modules/prisma/prisma.module';
 import { createUserModule } from './modules/user/user.module';
 
@@ -19,7 +20,16 @@ async function bootstrap(): Promise<void> {
     requirePermission: authModule.requirePermission,
     requirePermissionOrSelf: authModule.requirePermissionOrSelf,
   });
-  const app = createApp({ healthRouter, authRouter: authModule.router, userRouter });
+  const helpRequestRouter = createHelpRequestModule(prismaModule.prismaService, {
+    requireAuth: authModule.requireAuth,
+    requirePermission: authModule.requirePermission,
+  });
+  const app = createApp({
+    healthRouter,
+    authRouter: authModule.router,
+    userRouter,
+    helpRequestRouter,
+  });
 
   const server = app.listen(env.PORT, () => {
     logger.info({ port: env.PORT }, `Server running on http://localhost:${env.PORT}`);

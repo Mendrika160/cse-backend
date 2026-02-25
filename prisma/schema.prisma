@@ -39,6 +39,14 @@ enum Action {
   MANAGE
 }
 
+enum RequestStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  PAID
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -48,6 +56,8 @@ model User {
   updatedAt    DateTime @updatedAt
 
   role Role @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  beneficiaryHelpRequests HelpRequest[] @relation("HelpRequestBeneficiary")
+  managedHelpRequests     HelpRequest[] @relation("HelpRequestManager")
 
   @@index([roleId])
   @@map("users")
@@ -91,4 +101,24 @@ model RolePermission {
 
   @@id([roleId, permissionId])
   @@map("role_permissions")
+}
+
+model HelpRequest {
+  id            String        @id @default(cuid())
+  beneficiaryId String
+  managerId     String?
+  type          String
+  amount        Int
+  description   String
+  status        RequestStatus @default(DRAFT)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  beneficiary User  @relation("HelpRequestBeneficiary", fields: [beneficiaryId], references: [id], onDelete: Restrict)
+  manager     User? @relation("HelpRequestManager", fields: [managerId], references: [id], onDelete: SetNull)
+
+  @@index([beneficiaryId])
+  @@index([managerId])
+  @@index([status])
+  @@map("help_requests")
 }

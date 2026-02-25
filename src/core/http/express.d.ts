@@ -1,4 +1,5 @@
 import type { Action, Resource, UserRole } from '../../generated/prisma/enums';
+import type { HelpRequestResponseDto } from '../../modules/help-request/dto/help-request-response.dto';
 
 declare global {
   namespace Express {
@@ -13,6 +14,7 @@ declare global {
           action: Action;
         }>;
       };
+      helpRequest?: HelpRequestResponseDto;
     }
   }
 }
