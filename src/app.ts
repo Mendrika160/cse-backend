@@ -7,10 +7,11 @@ import { requestIdMiddleware } from './core/http/request-id';
 
 type AppModules = {
   healthRouter: Router;
+  authRouter: Router;
   userRouter: Router;
 };
 
-export function createApp({ healthRouter, userRouter }: AppModules) {
+export function createApp({ healthRouter, authRouter, userRouter }: AppModules) {
   const app = express();
   const apiRouter = express.Router();
 
@@ -20,6 +21,7 @@ export function createApp({ healthRouter, userRouter }: AppModules) {
   app.use(express.json());
 
   apiRouter.use(healthRouter);
+  apiRouter.use(authRouter);
   apiRouter.use(userRouter);
   app.use('/api', apiRouter);
 

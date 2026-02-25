@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { createApp } from './app';
 import { env } from './core/config/env';
 import { logger } from './core/logger/logger';
+import { createAuthModule } from './modules/auth/auth.module';
 import { createHealthModule } from './modules/health/health.module';
 import { createPrismaModule } from './modules/prisma/prisma.module';
 import { createUserModule } from './modules/user/user.module';
@@ -11,8 +12,9 @@ async function bootstrap(): Promise<void> {
   await prismaModule.connect();
 
   const healthRouter = createHealthModule();
+  const authRouter = createAuthModule(prismaModule.prismaService);
   const userRouter = createUserModule(prismaModule.prismaService);
-  const app = createApp({ healthRouter, userRouter });
+  const app = createApp({ healthRouter, authRouter, userRouter });
 
   const server = app.listen(env.PORT, () => {
     logger.info({ port: env.PORT }, `Server running on http://localhost:${env.PORT}`);
