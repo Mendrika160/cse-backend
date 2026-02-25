@@ -1,6 +1,11 @@
 import { Router } from 'express';
-import { createHealthRoutes } from './public/health.routes';
+import { HealthController } from './health.controller';
+import { createHealthRoutes } from './health.routes';
+import { HealthService } from './health.service';
 
 export function createHealthModule(): Router {
-  return createHealthRoutes();
+  const healthService = new HealthService();
+  const healthController = new HealthController(healthService);
+
+  return createHealthRoutes(healthController);
 }
