@@ -3,6 +3,7 @@ import { createApp } from './app';
 import { env } from './core/config/env';
 import { logger } from './core/logger/logger';
 import { createAuthModule } from './modules/auth/auth.module';
+import { createBudgetModule } from './modules/budget/budget.module';
 import { createHealthModule } from './modules/health/health.module';
 import { createHelpRequestModule } from './modules/help-request/help-request.module';
 import { createPrismaModule } from './modules/prisma/prisma.module';
@@ -24,11 +25,17 @@ async function bootstrap(): Promise<void> {
     requireAuth: authModule.requireAuth,
     requirePermission: authModule.requirePermission,
   });
+  const budgetRouter = createBudgetModule(prismaModule.prismaService, {
+    requireAuth: authModule.requireAuth,
+    requireRole: authModule.requireRole,
+    requirePermission: authModule.requirePermission,
+  });
   const app = createApp({
     healthRouter,
     authRouter: authModule.router,
     userRouter,
     helpRequestRouter,
+    budgetRouter,
   });
 
   const server = app.listen(env.PORT, () => {

@@ -122,3 +122,14 @@ model HelpRequest {
   @@index([status])
   @@map("help_requests")
 }
+
+model Budget {
+  id              String   @id @default(cuid())
+  year            Int      @unique
+  totalAmount     Int
+  remainingAmount Int
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("budgets")
+}
