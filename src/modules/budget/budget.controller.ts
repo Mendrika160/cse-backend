@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { asyncHandler } from '../../core/http/async-handler';
+import { UnauthorizedError } from '../../core/errors/unauthorized-error';
 import { parseGetBudgetQueryDto } from './dto/get-budget-query.dto';
 import { parseUpsertBudgetDto } from './dto/upsert-budget.dto';
 import type { BudgetService } from './budget.service';
@@ -14,8 +15,12 @@ export class BudgetController {
   });
 
   upsert = asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user) {
+      throw new UnauthorizedError('Authentication required');
+    }
+
     const input = parseUpsertBudgetDto(req.body);
-    const data = await this.budgetService.upsert(input);
+    const data = await this.budgetService.upsert(input, req.user.id);
     res.status(200).json({ data });
   });
 }

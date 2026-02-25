@@ -1,6 +1,7 @@
 import { ConflictError } from '../../core/errors/conflict-error';
 import { NotFoundError } from '../../core/errors/not-found-error';
 import type { PrismaClient } from '../../generated/prisma/client';
+import type { AuditLogService } from '../audit-log/audit-log.service';
 import type { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedUser } from '../auth/auth.service';
 import type { CreateHelpRequestDto } from './dto/create-help-request.dto';
@@ -20,7 +21,10 @@ const helpRequestSelect = {
 } as const;
 
 export class HelpRequestService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly auditLogService: AuditLogService,
+  ) {}
 
   private get prisma(): PrismaClient {
     return this.prismaService as unknown as PrismaClient;
@@ -40,7 +44,7 @@ export class HelpRequestService {
     beneficiaryId: string,
     input: CreateHelpRequestDto,
   ): Promise<HelpRequestResponseDto> {
-    return this.prisma.helpRequest.create({
+    const request = await this.prisma.helpRequest.create({
       data: {
         beneficiaryId,
         type: input.type,
@@ -49,10 +53,19 @@ export class HelpRequestService {
       },
       select: helpRequestSelect,
     });
+
+    await this.auditLogService.log({
+      userId: beneficiaryId,
+      action: 'HELP_REQUEST_CREATED',
+      resource: 'HELP_REQUEST',
+      resourceId: request.id,
+    });
+
+    return request;
   }
 
-  async edit(id: string, input: EditHelpRequestDto): Promise<HelpRequestResponseDto> {
-    return this.prisma.helpRequest.update({
+  async edit(id: string, input: EditHelpRequestDto, actorId: string): Promise<HelpRequestResponseDto> {
+    const request = await this.prisma.helpRequest.update({
       where: { id },
       data: {
         type: input.type,
@@ -61,14 +74,32 @@ export class HelpRequestService {
       },
       select: helpRequestSelect,
     });
+
+    await this.auditLogService.log({
+      userId: actorId,
+      action: 'HELP_REQUEST_UPDATED',
+      resource: 'HELP_REQUEST',
+      resourceId: request.id,
+    });
+
+    return request;
   }
 
-  async submit(id: string): Promise<HelpRequestResponseDto> {
-    return this.prisma.helpRequest.update({
+  async submit(id: string, actorId: string): Promise<HelpRequestResponseDto> {
+    const request = await this.prisma.helpRequest.update({
       where: { id },
       data: { status: 'SUBMITTED' },
       select: helpRequestSelect,
     });
+
+    await this.auditLogService.log({
+      userId: actorId,
+      action: 'HELP_REQUEST_SUBMITTED',
+      resource: 'HELP_REQUEST',
+      resourceId: request.id,
+    });
+
+    return request;
   }
 
   async approve(id: string, managerId: string): Promise<HelpRequestResponseDto> {
@@ -78,15 +109,31 @@ export class HelpRequestService {
     }
 
     await this.ensureBudgetCanCover(request);
-    return this.transitionByManager(id, managerId, 'APPROVED');
+    const updated = await this.transitionByManager(id, managerId, 'APPROVED');
+    await this.auditLogService.log({
+      userId: managerId,
+      action: 'HELP_REQUEST_APPROVED',
+      resource: 'HELP_REQUEST',
+      resourceId: updated.id,
+    });
+
+    return updated;
   }
 
   async reject(id: string, managerId: string): Promise<HelpRequestResponseDto> {
-    return this.transitionByManager(id, managerId, 'REJECTED');
+    const updated = await this.transitionByManager(id, managerId, 'REJECTED');
+    await this.auditLogService.log({
+      userId: managerId,
+      action: 'HELP_REQUEST_REJECTED',
+      resource: 'HELP_REQUEST',
+      resourceId: updated.id,
+    });
+
+    return updated;
   }
 
   async pay(id: string, managerId: string): Promise<HelpRequestResponseDto> {
-    return this.prisma.$transaction(async (tx) => {
+    const paidRequest = await this.prisma.$transaction(async (tx) => {
       const request = await tx.helpRequest.findUnique({
         where: { id },
         select: helpRequestSelect,
@@ -140,6 +187,15 @@ export class HelpRequestService {
 
       return paidRequest;
     });
+
+    await this.auditLogService.log({
+      userId: managerId,
+      action: 'HELP_REQUEST_PAID',
+      resource: 'HELP_REQUEST',
+      resourceId: paidRequest.id,
+    });
+
+    return paidRequest;
   }
 
   private async transitionByManager(

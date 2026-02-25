@@ -58,6 +58,7 @@ model User {
   role Role @relation(fields: [roleId], references: [id], onDelete: Restrict)
   beneficiaryHelpRequests HelpRequest[] @relation("HelpRequestBeneficiary")
   managedHelpRequests     HelpRequest[] @relation("HelpRequestManager")
+  auditLogs               AuditLog[]
 
   @@index([roleId])
   @@map("users")
@@ -132,4 +133,21 @@ model Budget {
   updatedAt       DateTime @updatedAt
 
   @@map("budgets")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  action     String
+  resource   Resource
+  resourceId String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([resource, resourceId])
+  @@index([createdAt])
+  @@map("audit_logs")
 }

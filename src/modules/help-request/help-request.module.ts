@@ -1,5 +1,6 @@
 import type { RequestHandler, Router } from 'express';
 import type { Action, Resource } from '../../generated/prisma/enums';
+import type { AuditLogService } from '../audit-log/audit-log.service';
 import type { PrismaService } from '../prisma/prisma.service';
 import { HelpRequestController } from './help-request.controller';
 import { createHelpRequestPolicies } from './help-request.policy';
@@ -13,9 +14,10 @@ type HelpRequestModuleGuards = {
 
 export function createHelpRequestModule(
   prismaService: PrismaService,
+  auditLogService: AuditLogService,
   guards: HelpRequestModuleGuards,
 ): Router {
-  const service = new HelpRequestService(prismaService);
+  const service = new HelpRequestService(prismaService, auditLogService);
   const controller = new HelpRequestController(service);
   const policies = createHelpRequestPolicies(service);
 

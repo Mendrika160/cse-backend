@@ -6,6 +6,7 @@ import { BadRequestError } from '../../core/errors/bad-request-error';
 import { ConflictError } from '../../core/errors/conflict-error';
 import { UnauthorizedError } from '../../core/errors/unauthorized-error';
 import type { Action, Resource, UserRole } from '../../generated/prisma/enums';
+import type { AuditLogService } from '../audit-log/audit-log.service';
 import type { PrismaService } from '../prisma/prisma.service';
 import type { LoginDto } from './dto/login.dto';
 import type { LoginResponseDto } from './dto/login-response.dto';
@@ -26,7 +27,10 @@ export type AuthenticatedUser = {
 };
 
 export class AuthService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly auditLogService: AuditLogService,
+  ) {}
 
   async register(input: RegisterDto): Promise<LoginResponseDto> {
     const existingUser = await this.prismaService.user.findUnique({
@@ -57,7 +61,7 @@ export class AuthService {
       },
     });
 
-    return {
+    const response: LoginResponseDto = {
       accessToken: this.createAccessToken(user.id, user.email, user.role.code),
       user: {
         id: user.id,
@@ -65,6 +69,18 @@ export class AuthService {
         role: user.role.code,
       },
     };
+
+    await this.auditLogService.log({
+      userId: response.user.id,
+      action: 'AUTH_REGISTER',
+      resource: 'USER',
+      resourceId: response.user.id,
+      metadata: {
+        role: response.user.role,
+      },
+    });
+
+    return response;
   }
 
   async login(input: LoginDto): Promise<LoginResponseDto> {
@@ -91,7 +107,7 @@ export class AuthService {
       throw new UnauthorizedError('Invalid credentials');
     }
 
-    return {
+    const response: LoginResponseDto = {
       accessToken: this.createAccessToken(user.id, user.email, user.role.code),
       user: {
         id: user.id,
@@ -99,6 +115,15 @@ export class AuthService {
         role: user.role.code,
       },
     };
+
+    await this.auditLogService.log({
+      userId: response.user.id,
+      action: 'AUTH_LOGIN',
+      resource: 'USER',
+      resourceId: response.user.id,
+    });
+
+    return response;
   }
 
   async authenticateAccessToken(token: string): Promise<AuthenticatedUser> {

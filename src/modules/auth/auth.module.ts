@@ -1,5 +1,6 @@
 import type { Request, RequestHandler, Router } from 'express';
 import type { Action, Resource, UserRole } from '../../generated/prisma/enums';
+import type { AuditLogService } from '../audit-log/audit-log.service';
 import type { PrismaService } from '../prisma/prisma.service';
 import { AuthController } from './auth.controller';
 import {
@@ -25,8 +26,8 @@ export type AuthModule = {
   ) => RequestHandler;
 };
 
-export function createAuthModule(prismaService: PrismaService): AuthModule {
-  const authService = new AuthService(prismaService);
+export function createAuthModule(prismaService: PrismaService, auditLogService: AuditLogService): AuthModule {
+  const authService = new AuthService(prismaService, auditLogService);
   const authController = new AuthController(authService);
   const requireAuth = createRequireAuth(authService);
 

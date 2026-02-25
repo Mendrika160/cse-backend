@@ -4,6 +4,7 @@ import { ConflictError } from '../../core/errors/conflict-error';
 import { ForbiddenError } from '../../core/errors/forbidden-error';
 import { NotFoundError } from '../../core/errors/not-found-error';
 import type { UserRole } from '../../generated/prisma/enums';
+import type { AuditLogService } from '../audit-log/audit-log.service';
 import type { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedUser } from '../auth/auth.service';
 import type { CreateUserDto } from './dto/create-user.dto';
@@ -25,7 +26,10 @@ const userResponseSelect = {
 } as const;
 
 export class UserService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly auditLogService: AuditLogService,
+  ) {}
 
   async findById(id: string): Promise<UserResponseDto> {
     const user = await this.prismaService.user.findUnique({
@@ -82,7 +86,18 @@ export class UserService {
       select: userResponseSelect,
     });
 
-    return this.toUserResponseDto(user);
+    const response = this.toUserResponseDto(user);
+    await this.auditLogService.log({
+      userId: actor.id,
+      action: 'USER_CREATED',
+      resource: 'USER',
+      resourceId: response.id,
+      metadata: {
+        role: response.role,
+      },
+    });
+
+    return response;
   }
 
   async edit(id: string, input: EditUserDto, actor: AuthenticatedUser): Promise<UserResponseDto> {
@@ -142,7 +157,20 @@ export class UserService {
       select: userResponseSelect,
     });
 
-    return this.toUserResponseDto(user);
+    const response = this.toUserResponseDto(user);
+    await this.auditLogService.log({
+      userId: actor.id,
+      action: 'USER_UPDATED',
+      resource: 'USER',
+      resourceId: response.id,
+      metadata: {
+        emailChanged: typeof input.email === 'string',
+        passwordChanged: typeof input.password === 'string',
+        roleChanged: typeof input.role === 'string',
+      },
+    });
+
+    return response;
   }
 
   private hashPassword(password: string): Promise<string> {

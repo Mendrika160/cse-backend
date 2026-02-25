@@ -36,21 +36,21 @@ export class HelpRequestController {
   });
 
   edit = asyncHandler(async (req: Request, res: Response) => {
-    if (!req.helpRequest) {
-      throw new UnauthorizedError('Help request context is missing');
+    if (!req.user || !req.helpRequest) {
+      throw new UnauthorizedError('Authentication required');
     }
 
     const payload = parseEditHelpRequestDto(req.body);
-    const data = await this.helpRequestService.edit(req.helpRequest.id, payload);
+    const data = await this.helpRequestService.edit(req.helpRequest.id, payload, req.user.id);
     res.status(200).json({ data });
   });
 
   submit = asyncHandler(async (req: Request, res: Response) => {
-    if (!req.helpRequest) {
-      throw new UnauthorizedError('Help request context is missing');
+    if (!req.user || !req.helpRequest) {
+      throw new UnauthorizedError('Authentication required');
     }
 
-    const data = await this.helpRequestService.submit(req.helpRequest.id);
+    const data = await this.helpRequestService.submit(req.helpRequest.id, req.user.id);
     res.status(200).json({ data });
   });
 
