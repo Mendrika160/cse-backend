@@ -7,9 +7,10 @@ import { requestIdMiddleware } from './core/http/request-id';
 
 type AppModules = {
   healthRouter: Router;
+  userRouter: Router;
 };
 
-export function createApp({ healthRouter }: AppModules) {
+export function createApp({ healthRouter, userRouter }: AppModules) {
   const app = express();
   const apiRouter = express.Router();
 
@@ -19,6 +20,7 @@ export function createApp({ healthRouter }: AppModules) {
   app.use(express.json());
 
   apiRouter.use(healthRouter);
+  apiRouter.use(userRouter);
   app.use('/api', apiRouter);
 
   app.use(notFoundMiddleware);

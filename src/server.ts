@@ -4,13 +4,15 @@ import { env } from './core/config/env';
 import { logger } from './core/logger/logger';
 import { createHealthModule } from './modules/health/health.module';
 import { createPrismaModule } from './modules/prisma/prisma.module';
+import { createUserModule } from './modules/user/user.module';
 
 async function bootstrap(): Promise<void> {
   const prismaModule = createPrismaModule();
   await prismaModule.connect();
 
   const healthRouter = createHealthModule();
-  const app = createApp({ healthRouter });
+  const userRouter = createUserModule(prismaModule.prismaService);
+  const app = createApp({ healthRouter, userRouter });
 
   const server = app.listen(env.PORT, () => {
     logger.info({ port: env.PORT }, `Server running on http://localhost:${env.PORT}`);
