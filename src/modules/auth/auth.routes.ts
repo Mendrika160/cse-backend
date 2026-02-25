@@ -1,11 +1,18 @@
+import type { RequestHandler } from 'express';
 import { Router } from 'express';
 import type { AuthController } from './auth.controller';
 
-export function createAuthRoutes(controller: AuthController): Router {
+type AuthRouteGuards = {
+  requireAuth: RequestHandler;
+};
+
+export function createAuthRoutes(controller: AuthController, guards: AuthRouteGuards): Router {
   const router = Router();
 
   router.post('/auth/register', controller.register);
   router.post('/auth/login', controller.login);
+  router.get('/me', guards.requireAuth, controller.me);
+  router.get('/me/permissions', guards.requireAuth, controller.myPermissions);
 
   return router;
 }

@@ -31,7 +31,7 @@ export function createAuthModule(prismaService: PrismaService): AuthModule {
   const requireAuth = createRequireAuth(authService);
 
   return {
-    router: createAuthRoutes(authController),
+    router: createAuthRoutes(authController, { requireAuth }),
     requireAuth,
     requireRole: (role: UserRole) => createRequireRole(role),
     requirePermission: (resource: Resource, action: Action) =>
