@@ -77,6 +77,11 @@ export class BudgetService {
     if (input.totalAmount < committed) {
       throw new ConflictError(
         `Cannot set totalAmount below consumed + reserved amount (${committed}) for year ${input.year}`,
+        {
+          businessCode: 'BUDGET_TOTAL_BELOW_COMMITTED',
+          year: input.year,
+          committedAmount: committed,
+        },
       );
     }
 

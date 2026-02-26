@@ -143,7 +143,9 @@ export class HelpRequestService {
         throw new NotFoundError('Help request not found');
       }
       if (request.status !== 'SUBMITTED') {
-        throw new ConflictError('Only SUBMITTED requests can be approved');
+        throw new ConflictError('Only SUBMITTED requests can be approved', {
+          businessCode: 'HELP_REQUEST_REQUIRES_SUBMITTED',
+        });
       }
 
       const budgetYear = this.resolveBudgetYear(request.createdAt);
@@ -181,7 +183,9 @@ export class HelpRequestService {
       });
 
       if (reserveUpdate.count !== 1) {
-        throw new ConflictError('Budget was updated concurrently. Please retry.');
+        throw new ConflictError('Budget was updated concurrently. Please retry.', {
+          businessCode: 'BUDGET_CONCURRENT_UPDATE',
+        });
       }
 
       const requestUpdate = await tx.helpRequest.updateMany({
@@ -196,7 +200,9 @@ export class HelpRequestService {
       });
 
       if (requestUpdate.count !== 1) {
-        throw new ConflictError('Only SUBMITTED requests can be approved');
+        throw new ConflictError('Only SUBMITTED requests can be approved', {
+          businessCode: 'HELP_REQUEST_REQUIRES_SUBMITTED',
+        });
       }
 
       const updatedRequest = await tx.helpRequest.findUnique({
@@ -244,7 +250,9 @@ export class HelpRequestService {
         throw new NotFoundError('Help request not found');
       }
       if (request.status !== 'APPROVED') {
-        throw new ConflictError('Only APPROVED requests can be paid');
+        throw new ConflictError('Only APPROVED requests can be paid', {
+          businessCode: 'HELP_REQUEST_REQUIRES_APPROVED',
+        });
       }
 
       const budgetYear = this.resolveBudgetYear(request.createdAt);
@@ -282,7 +290,9 @@ export class HelpRequestService {
       });
 
       if (budgetUpdate.count !== 1) {
-        throw new ConflictError('Budget was updated concurrently. Please retry.');
+        throw new ConflictError('Budget was updated concurrently. Please retry.', {
+          businessCode: 'BUDGET_CONCURRENT_UPDATE',
+        });
       }
 
       const requestUpdate = await tx.helpRequest.updateMany({
@@ -297,7 +307,9 @@ export class HelpRequestService {
       });
 
       if (requestUpdate.count !== 1) {
-        throw new ConflictError('Request status changed during payment');
+        throw new ConflictError('Request status changed during payment', {
+          businessCode: 'HELP_REQUEST_STATUS_CHANGED_DURING_PAYMENT',
+        });
       }
 
       const paidRequest = await tx.helpRequest.findUnique({
@@ -339,7 +351,9 @@ export class HelpRequestService {
     });
 
     if (updated.count !== 1) {
-      throw new ConflictError('Only SUBMITTED requests can be approved/rejected');
+      throw new ConflictError('Only SUBMITTED requests can be approved/rejected', {
+        businessCode: 'HELP_REQUEST_REQUIRES_SUBMITTED',
+      });
     }
 
     const request = await this.prisma.helpRequest.findUnique({

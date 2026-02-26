@@ -47,7 +47,9 @@ export function createHelpRequestPolicies(helpRequestService: HelpRequestService
     try {
       const user = getAuthenticatedUser(req);
       if (user.role !== 'BENEFICIARY') {
-        throw new ForbiddenError('Only BENEFICIARY can create help requests');
+        throw new ForbiddenError('Only BENEFICIARY can create help requests', {
+          businessCode: 'HELP_REQUEST_CREATE_REQUIRES_BENEFICIARY',
+        });
       }
 
       next();
@@ -62,7 +64,9 @@ export function createHelpRequestPolicies(helpRequestService: HelpRequestService
       const request = getLoadedRequest(req);
 
       if (user.role === 'BENEFICIARY' && request.beneficiaryId !== user.id) {
-        throw new ForbiddenError('You cannot access a request you do not own');
+        throw new ForbiddenError('You cannot access a request you do not own', {
+          businessCode: 'HELP_REQUEST_ACCESS_DENIED_NOT_OWNER',
+        });
       }
 
       next();
@@ -77,7 +81,9 @@ export function createHelpRequestPolicies(helpRequestService: HelpRequestService
       const request = getLoadedRequest(req);
 
       if (request.beneficiaryId !== user.id) {
-        throw new ForbiddenError('You cannot modify a request you do not own');
+        throw new ForbiddenError('You cannot modify a request you do not own', {
+          businessCode: 'HELP_REQUEST_UPDATE_DENIED_NOT_OWNER',
+        });
       }
 
       next();
@@ -90,7 +96,9 @@ export function createHelpRequestPolicies(helpRequestService: HelpRequestService
     try {
       const user = getAuthenticatedUser(req);
       if (user.role !== 'MANAGER') {
-        throw new ForbiddenError('Only MANAGER can perform this action');
+        throw new ForbiddenError('Only MANAGER can perform this action', {
+          businessCode: 'HELP_REQUEST_ACTION_REQUIRES_MANAGER',
+        });
       }
 
       next();
@@ -103,7 +111,9 @@ export function createHelpRequestPolicies(helpRequestService: HelpRequestService
     try {
       const request = getLoadedRequest(req);
       if (request.status !== 'DRAFT') {
-        throw new ConflictError('Only DRAFT requests can be modified/submitted');
+        throw new ConflictError('Only DRAFT requests can be modified/submitted', {
+          businessCode: 'HELP_REQUEST_REQUIRES_DRAFT',
+        });
       }
 
       next();
@@ -116,7 +126,9 @@ export function createHelpRequestPolicies(helpRequestService: HelpRequestService
     try {
       const request = getLoadedRequest(req);
       if (request.status !== 'SUBMITTED') {
-        throw new ConflictError('Only SUBMITTED requests can be approved/rejected');
+        throw new ConflictError('Only SUBMITTED requests can be approved/rejected', {
+          businessCode: 'HELP_REQUEST_REQUIRES_SUBMITTED',
+        });
       }
 
       next();
@@ -129,7 +141,9 @@ export function createHelpRequestPolicies(helpRequestService: HelpRequestService
     try {
       const request = getLoadedRequest(req);
       if (request.status !== 'APPROVED') {
-        throw new ConflictError('Only APPROVED requests can be paid');
+        throw new ConflictError('Only APPROVED requests can be paid', {
+          businessCode: 'HELP_REQUEST_REQUIRES_APPROVED',
+        });
       }
 
       next();
