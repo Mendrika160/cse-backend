@@ -3,6 +3,7 @@ import { UnauthorizedError } from '../../core/errors/unauthorized-error';
 import { asyncHandler } from '../../core/http/async-handler';
 import { parseCreateHelpRequestDto } from './dto/create-help-request.dto';
 import { parseEditHelpRequestDto } from './dto/edit-help-request.dto';
+import { parseListHelpRequestQueryDto } from './dto/list-help-request-query.dto';
 import type { HelpRequestService } from './help-request.service';
 
 export class HelpRequestController {
@@ -13,8 +14,17 @@ export class HelpRequestController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const data = await this.helpRequestService.list(req.user);
-    res.status(200).json({ data });
+    const query = parseListHelpRequestQueryDto(req.query);
+    const result = await this.helpRequestService.list(req.user, query);
+    res.status(200).json({
+      data: result.items,
+      pagination: {
+        total: result.total,
+        page: result.page,
+        pageSize: result.pageSize,
+        totalPages: result.totalPages,
+      },
+    });
   });
 
   findById = asyncHandler(async (req: Request, res: Response) => {

@@ -7,6 +7,7 @@ import type { AuthenticatedUser } from '../auth/auth.service';
 import type { CreateHelpRequestDto } from './dto/create-help-request.dto';
 import type { EditHelpRequestDto } from './dto/edit-help-request.dto';
 import type { HelpRequestResponseDto } from './dto/help-request-response.dto';
+import type { ListHelpRequestQueryDto } from './dto/list-help-request-query.dto';
 
 const helpRequestSelect = {
   id: true,
@@ -30,14 +31,43 @@ export class HelpRequestService {
     return this.prismaService as unknown as PrismaClient;
   }
 
-  async list(actor: AuthenticatedUser): Promise<HelpRequestResponseDto[]> {
-    const rows = await this.prisma.helpRequest.findMany({
-      where: actor.role === 'BENEFICIARY' ? { beneficiaryId: actor.id } : undefined,
-      select: helpRequestSelect,
-      orderBy: { createdAt: 'desc' },
-    });
+  async list(
+    actor: AuthenticatedUser,
+    query: ListHelpRequestQueryDto,
+  ): Promise<{
+    items: HelpRequestResponseDto[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }> {
+    const where = actor.role === 'BENEFICIARY' ? { beneficiaryId: actor.id } : undefined;
+    const skip = (query.page - 1) * query.pageSize;
 
-    return rows;
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.helpRequest.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: query.pageSize,
+        select: {
+          ...helpRequestSelect,
+          beneficiary: { select: { id: true,email: true } },
+          manager: { select: { id: true, email: true } },
+        },
+      }),
+      this.prisma.helpRequest.count({ where }),
+    ]);
+
+    const totalPages = Math.max(1, Math.ceil(total / query.pageSize));
+
+    return {
+      items: rows,
+      total,
+      page: query.page,
+      pageSize: query.pageSize,
+      totalPages,
+    };
   }
 
   async createForBeneficiary(
