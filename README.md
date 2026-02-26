@@ -22,7 +22,10 @@ cp .env.example .env
 PORT=4000
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DB?sslmode=require
 JWT_SECRET=your_strong_secret
-JWT_EXPIRES_IN=1d
+JWT_EXPIRES_IN=15m
+JWT_REFRESH_SECRET=your_strong_refresh_secret
+JWT_REFRESH_EXPIRES_IN=7d
+REFRESH_TOKEN_COOKIE_NAME=refresh_token
 ```
 
 4. Generer le client Prisma et appliquer les migrations:
@@ -48,7 +51,10 @@ Fichier: `.env`
 PORT=4000
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DB?sslmode=require
 JWT_SECRET=your_strong_secret
-JWT_EXPIRES_IN=1d
+JWT_EXPIRES_IN=15m
+JWT_REFRESH_SECRET=your_strong_refresh_secret
+JWT_REFRESH_EXPIRES_IN=7d
+REFRESH_TOKEN_COOKIE_NAME=refresh_token
 ```
 
 ## Endpoints principaux

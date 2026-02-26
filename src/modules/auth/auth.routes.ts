@@ -11,6 +11,8 @@ export function createAuthRoutes(controller: AuthController, guards: AuthRouteGu
 
   router.post('/auth/register', controller.register);
   router.post('/auth/login', controller.login);
+  router.post('/auth/refresh', controller.refresh);
+  router.post('/auth/logout', controller.logout);
   router.get('/me', guards.requireAuth, controller.me);
   router.get('/me/permissions', guards.requireAuth, controller.myPermissions);
 

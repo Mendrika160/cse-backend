@@ -14,6 +14,17 @@ import type { RegisterDto } from './dto/register.dto';
 
 const PASSWORD_SALT_ROUNDS = 10;
 
+type TokenPayload = JwtPayload & {
+  sub: string;
+  tokenType?: 'access' | 'refresh';
+};
+
+type UserIdentity = {
+  id: string;
+  email: string;
+  role: UserRole;
+};
+
 export type AuthPermission = {
   resource: Resource;
   action: Action;
@@ -26,13 +37,17 @@ export type AuthenticatedUser = {
   permissions: AuthPermission[];
 };
 
+export type AuthSession = LoginResponseDto & {
+  refreshToken: string;
+};
+
 export class AuthService {
   constructor(
     private readonly prismaService: PrismaService,
     private readonly auditLogService: AuditLogService,
   ) {}
 
-  async register(input: RegisterDto): Promise<LoginResponseDto> {
+  async register(input: RegisterDto): Promise<AuthSession> {
     const existingUser = await this.prismaService.user.findUnique({
       where: { email: input.email },
       select: { id: true },
@@ -61,29 +76,21 @@ export class AuthService {
       },
     });
 
-    const response: LoginResponseDto = {
-      accessToken: this.createAccessToken(user.id, user.email, user.role.code),
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role.code,
-      },
-    };
-
+    const session = this.createSession(user.id, user.email, user.role.code);
     await this.auditLogService.log({
-      userId: response.user.id,
+      userId: session.user.id,
       action: 'AUTH_REGISTER',
       resource: 'USER',
-      resourceId: response.user.id,
+      resourceId: session.user.id,
       metadata: {
-        role: response.user.role,
+        role: session.user.role,
       },
     });
 
-    return response;
+    return session;
   }
 
-  async login(input: LoginDto): Promise<LoginResponseDto> {
+  async login(input: LoginDto): Promise<AuthSession> {
     const user = await this.prismaService.user.findUnique({
       where: { email: input.email },
       select: {
@@ -107,23 +114,48 @@ export class AuthService {
       throw new UnauthorizedError('Invalid credentials');
     }
 
-    const response: LoginResponseDto = {
-      accessToken: this.createAccessToken(user.id, user.email, user.role.code),
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role.code,
-      },
-    };
-
+    const session = this.createSession(user.id, user.email, user.role.code);
     await this.auditLogService.log({
-      userId: response.user.id,
+      userId: session.user.id,
       action: 'AUTH_LOGIN',
       resource: 'USER',
-      resourceId: response.user.id,
+      resourceId: session.user.id,
     });
 
-    return response;
+    return session;
+  }
+
+  async refreshSession(refreshToken: string): Promise<AuthSession> {
+    const payload = this.verifyRefreshToken(refreshToken);
+    const user = await this.findIdentityById(payload.sub);
+
+    const session = this.createSession(user.id, user.email, user.role);
+    await this.auditLogService.log({
+      userId: user.id,
+      action: 'AUTH_REFRESH',
+      resource: 'USER',
+      resourceId: user.id,
+    });
+
+    return session;
+  }
+
+  async logout(refreshToken?: string): Promise<void> {
+    if (!refreshToken) {
+      return;
+    }
+
+    try {
+      const payload = this.verifyRefreshToken(refreshToken);
+      await this.auditLogService.log({
+        userId: payload.sub,
+        action: 'AUTH_LOGOUT',
+        resource: 'USER',
+        resourceId: payload.sub,
+      });
+    } catch {
+      // Best effort.
+    }
   }
 
   async authenticateAccessToken(token: string): Promise<AuthenticatedUser> {
@@ -167,6 +199,43 @@ export class AuthService {
     };
   }
 
+  private createSession(userId: string, email: string, role: UserRole): AuthSession {
+    return {
+      accessToken: this.createAccessToken(userId, email, role),
+      refreshToken: this.createRefreshToken(userId, email, role),
+      user: {
+        id: userId,
+        email,
+        role,
+      },
+    };
+  }
+
+  private async findIdentityById(id: string): Promise<UserIdentity> {
+    const user = await this.prismaService.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        role: {
+          select: {
+            code: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedError('Invalid token');
+    }
+
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role.code,
+    };
+  }
+
   private async resolveRoleId(roleCode: UserRole): Promise<string> {
     const role = await this.prismaService.role.findUnique({
       where: { code: roleCode },
@@ -190,22 +259,61 @@ export class AuthService {
         sub: userId,
         email,
         role,
+        tokenType: 'access',
       },
       env.JWT_SECRET,
       options,
     );
   }
 
-  private verifyAccessToken(token: string): JwtPayload & { sub: string } {
+  private createRefreshToken(userId: string, email: string, role: UserRole): string {
+    const options: SignOptions = {
+      expiresIn: env.JWT_REFRESH_EXPIRES_IN as SignOptions['expiresIn'],
+    };
+
+    return jwt.sign(
+      {
+        sub: userId,
+        email,
+        role,
+        tokenType: 'refresh',
+      },
+      env.JWT_REFRESH_SECRET,
+      options,
+    );
+  }
+
+  private verifyAccessToken(token: string): TokenPayload {
     try {
       const decoded = jwt.verify(token, env.JWT_SECRET);
       if (typeof decoded === 'string' || typeof decoded.sub !== 'string') {
         throw new UnauthorizedError('Invalid token payload');
       }
 
-      return decoded as JwtPayload & { sub: string };
+      if (decoded.tokenType && decoded.tokenType !== 'access') {
+        throw new UnauthorizedError('Invalid access token');
+      }
+
+      return decoded as TokenPayload;
     } catch {
       throw new UnauthorizedError('Invalid or expired token');
+    }
+  }
+
+  private verifyRefreshToken(token: string): TokenPayload {
+    try {
+      const decoded = jwt.verify(token, env.JWT_REFRESH_SECRET);
+      if (typeof decoded === 'string' || typeof decoded.sub !== 'string') {
+        throw new UnauthorizedError('Invalid refresh token payload');
+      }
+
+      if (decoded.tokenType !== 'refresh') {
+        throw new UnauthorizedError('Invalid refresh token');
+      }
+
+      return decoded as TokenPayload;
+    } catch {
+      throw new UnauthorizedError('Invalid or expired refresh token');
     }
   }
 }

@@ -51,10 +51,13 @@
 - Module `auth`:
   - `POST /auth/register`
   - `POST /auth/login`
+  - `POST /auth/refresh`
+  - `POST /auth/logout`
   - `GET /me`
   - `GET /me/permissions`
 - Hash mot de passe: bcrypt.
-- JWT avec expiration configurable.
+- JWT avec expiration configurable (`accessToken` court + `refreshToken` long).
+- Refresh token transporte via cookie HttpOnly (pas de stockage `localStorage`).
 - Chargement role + permissions depuis la base.
 
 ### 8. Configuration Role et Permission
