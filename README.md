@@ -67,15 +67,15 @@ Tous les endpoints sont prefixes par `/api`.
 
 ### Auth
 
-- `POST /auth/register`
 - `POST /auth/login`
+- `POST /auth/refresh`
+- `POST /auth/logout`
 - `GET /me` (token requis)
 - `GET /me/permissions` (token requis)
 
 ### Users
 
-- `GET /users/:id`
-- `GET /users/by-email?email=...`
+- `GET /beneficiaries?page=1&pageSize=10` (ADMIN + permission `BENEFICIARY/READ`)
 - `POST /users` (ADMIN + permission `BENEFICIARY/CREATE`)
 - `PATCH /users/:id` (self ou permission `BENEFICIARY/UPDATE`)
 
@@ -92,6 +92,8 @@ Tous les endpoints sont prefixes par `/api`.
 
 ### Budget annuel
 
+- `GET /budgets?page=1&pageSize=10` (ADMIN + permission `BUDGET/READ`)
+- `POST /budgets` (ADMIN + permission `BUDGET/UPDATE`)
 - `GET /budget?year=2026` (ADMIN + permission `BUDGET/READ`)
 - `PUT /budget` (ADMIN + permission `BUDGET/UPDATE`)
 

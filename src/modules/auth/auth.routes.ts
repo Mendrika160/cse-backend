@@ -9,7 +9,6 @@ type AuthRouteGuards = {
 export function createAuthRoutes(controller: AuthController, guards: AuthRouteGuards): Router {
   const router = Router();
 
-  router.post('/auth/register', controller.register);
   router.post('/auth/login', controller.login);
   router.post('/auth/refresh', controller.refresh);
   router.post('/auth/logout', controller.logout);

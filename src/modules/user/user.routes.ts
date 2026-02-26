@@ -25,8 +25,6 @@ export function createUserRoutes(controller: UserController, guards: UserRouteGu
     controller.listBeneficiaries,
   );
 
-  router.get('/users/by-email', controller.findByEmail);
-  router.get('/users/:id', controller.findById);
   router.post(
     '/users',
     guards.requireAuth,
