@@ -3,6 +3,8 @@ export type BudgetResponseDto = {
   year: number;
   totalAmount: number;
   remainingAmount: number;
+  reservedAmount: number;
+  availableAmount: number;
   createdAt: Date;
   updatedAt: Date;
 };

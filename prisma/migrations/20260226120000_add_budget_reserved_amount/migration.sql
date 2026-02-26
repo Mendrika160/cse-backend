@@ -1,0 +1,2 @@
+ALTER TABLE "budgets"
+ADD COLUMN "reservedAmount" INTEGER NOT NULL DEFAULT 0;

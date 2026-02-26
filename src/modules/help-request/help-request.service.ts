@@ -133,13 +133,84 @@ export class HelpRequestService {
   }
 
   async approve(id: string, managerId: string): Promise<HelpRequestResponseDto> {
-    const request = await this.findByIdOrThrow(id);
-    if (request.status !== 'SUBMITTED') {
-      throw new ConflictError('Only SUBMITTED requests can be approved');
-    }
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const request = await tx.helpRequest.findUnique({
+        where: { id },
+        select: helpRequestSelect,
+      });
 
-    await this.ensureBudgetCanCover(request);
-    const updated = await this.transitionByManager(id, managerId, 'APPROVED');
+      if (!request) {
+        throw new NotFoundError('Help request not found');
+      }
+      if (request.status !== 'SUBMITTED') {
+        throw new ConflictError('Only SUBMITTED requests can be approved');
+      }
+
+      const budgetYear = this.resolveBudgetYear(request.createdAt);
+      const budget = await tx.budget.findUnique({
+        where: { year: budgetYear },
+        select: { remainingAmount: true, reservedAmount: true },
+      });
+
+      if (!budget) {
+        throw new ConflictError(`Budget for year ${budgetYear} is not configured`, {
+          businessCode: 'BUDGET_NOT_CONFIGURED',
+          year: budgetYear,
+        });
+      }
+
+      const availableAmount = budget.remainingAmount - budget.reservedAmount;
+      if (availableAmount < request.amount) {
+        throw new ConflictError(`Insufficient budget for year ${budgetYear}`, {
+          businessCode: 'INSUFFICIENT_BUDGET',
+          year: budgetYear,
+          requestedAmount: request.amount,
+          availableAmount,
+        });
+      }
+
+      const reserveUpdate = await tx.budget.updateMany({
+        where: {
+          year: budgetYear,
+          remainingAmount: budget.remainingAmount,
+          reservedAmount: budget.reservedAmount,
+        },
+        data: {
+          reservedAmount: { increment: request.amount },
+        },
+      });
+
+      if (reserveUpdate.count !== 1) {
+        throw new ConflictError('Budget was updated concurrently. Please retry.');
+      }
+
+      const requestUpdate = await tx.helpRequest.updateMany({
+        where: {
+          id,
+          status: 'SUBMITTED',
+        },
+        data: {
+          status: 'APPROVED',
+          managerId,
+        },
+      });
+
+      if (requestUpdate.count !== 1) {
+        throw new ConflictError('Only SUBMITTED requests can be approved');
+      }
+
+      const updatedRequest = await tx.helpRequest.findUnique({
+        where: { id },
+        select: helpRequestSelect,
+      });
+
+      if (!updatedRequest) {
+        throw new NotFoundError('Help request not found after approval');
+      }
+
+      return updatedRequest;
+    });
+
     await this.auditLogService.log({
       userId: managerId,
       action: 'HELP_REQUEST_APPROVED',
@@ -177,18 +248,41 @@ export class HelpRequestService {
       }
 
       const budgetYear = this.resolveBudgetYear(request.createdAt);
+      const budget = await tx.budget.findUnique({
+        where: { year: budgetYear },
+        select: { remainingAmount: true, reservedAmount: true },
+      });
+
+      if (!budget) {
+        throw new ConflictError(`Budget for year ${budgetYear} is not configured`, {
+          businessCode: 'BUDGET_NOT_CONFIGURED',
+          year: budgetYear,
+        });
+      }
+      if (budget.reservedAmount < request.amount || budget.remainingAmount < request.amount) {
+        throw new ConflictError(`Insufficient budget for year ${budgetYear}`, {
+          businessCode: 'INSUFFICIENT_BUDGET',
+          year: budgetYear,
+          requestedAmount: request.amount,
+          reservedAmount: budget.reservedAmount,
+          remainingAmount: budget.remainingAmount,
+        });
+      }
+
       const budgetUpdate = await tx.budget.updateMany({
         where: {
           year: budgetYear,
-          remainingAmount: { gte: request.amount },
+          remainingAmount: budget.remainingAmount,
+          reservedAmount: budget.reservedAmount,
         },
         data: {
           remainingAmount: { decrement: request.amount },
+          reservedAmount: { decrement: request.amount },
         },
       });
 
       if (budgetUpdate.count !== 1) {
-        throw new ConflictError(`Insufficient budget for year ${budgetYear}`);
+        throw new ConflictError('Budget was updated concurrently. Please retry.');
       }
 
       const requestUpdate = await tx.helpRequest.updateMany({
@@ -271,23 +365,6 @@ export class HelpRequestService {
     }
 
     return request;
-  }
-
-  private async ensureBudgetCanCover(request: HelpRequestResponseDto): Promise<void> {
-    const budgetYear = this.resolveBudgetYear(request.createdAt);
-
-    const budget = await this.prisma.budget.findUnique({
-      where: { year: budgetYear },
-      select: { remainingAmount: true },
-    });
-
-    if (!budget) {
-      throw new ConflictError(`Budget for year ${budgetYear} is not configured`);
-    }
-
-    if (budget.remainingAmount < request.amount) {
-      throw new ConflictError(`Insufficient budget for year ${budgetYear}`);
-    }
   }
 
   private resolveBudgetYear(createdAt: Date): number {

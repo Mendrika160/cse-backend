@@ -11,6 +11,7 @@ const budgetSelect = {
   year: true,
   totalAmount: true,
   remainingAmount: true,
+  reservedAmount: true,
   createdAt: true,
   updatedAt: true,
 } as const;
@@ -35,7 +36,7 @@ export class BudgetService {
       throw new NotFoundError(`Budget for year ${year} not found`);
     }
 
-    return budget;
+    return this.toBudgetResponseDto(budget);
   }
 
   async upsert(input: UpsertBudgetDto, actorId: string): Promise<BudgetResponseDto> {
@@ -50,6 +51,7 @@ export class BudgetService {
           year: input.year,
           totalAmount: input.totalAmount,
           remainingAmount: input.totalAmount,
+          reservedAmount: 0,
         },
         select: budgetSelect,
       });
@@ -62,16 +64,19 @@ export class BudgetService {
         metadata: {
           totalAmount: created.totalAmount,
           remainingAmount: created.remainingAmount,
+          reservedAmount: created.reservedAmount,
+          availableAmount: created.remainingAmount - created.reservedAmount,
         },
       });
 
-      return created;
+      return this.toBudgetResponseDto(created);
     }
 
     const spent = existing.totalAmount - existing.remainingAmount;
-    if (input.totalAmount < spent) {
+    const committed = spent + existing.reservedAmount;
+    if (input.totalAmount < committed) {
       throw new ConflictError(
-        `Cannot set totalAmount below already consumed amount (${spent}) for year ${input.year}`,
+        `Cannot set totalAmount below consumed + reserved amount (${committed}) for year ${input.year}`,
       );
     }
 
@@ -92,9 +97,26 @@ export class BudgetService {
       metadata: {
         totalAmount: updated.totalAmount,
         remainingAmount: updated.remainingAmount,
+        reservedAmount: updated.reservedAmount,
+        availableAmount: updated.remainingAmount - updated.reservedAmount,
       },
     });
 
-    return updated;
+    return this.toBudgetResponseDto(updated);
+  }
+
+  private toBudgetResponseDto(budget: {
+    id: string;
+    year: number;
+    totalAmount: number;
+    remainingAmount: number;
+    reservedAmount: number;
+    createdAt: Date;
+    updatedAt: Date;
+  }): BudgetResponseDto {
+    return {
+      ...budget,
+      availableAmount: budget.remainingAmount - budget.reservedAmount,
+    };
   }
 }
