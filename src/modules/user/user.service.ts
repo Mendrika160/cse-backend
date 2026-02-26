@@ -9,6 +9,7 @@ import type { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedUser } from '../auth/auth.service';
 import type { CreateUserDto } from './dto/create-user.dto';
 import type { EditUserDto } from './dto/edit-user.dto';
+import type { ListBeneficiariesQueryDto } from './dto/list-beneficiaries-query.dto';
 import type { UserResponseDto } from './dto/user-response.dto';
 
 const PASSWORD_SALT_ROUNDS = 10;
@@ -57,6 +58,43 @@ export class UserService {
     return this.toUserResponseDto(user);
   }
 
+  async listBeneficiaries(
+    query: ListBeneficiariesQueryDto,
+  ): Promise<{
+    items: UserResponseDto[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }> {
+    const skip = (query.page - 1) * query.pageSize;
+    const where = {
+      role: {
+        code: 'BENEFICIARY' as const,
+      },
+    };
+
+    const [rows, total] = await this.prismaService.$transaction([
+      this.prismaService.user.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: query.pageSize,
+        select: userResponseSelect,
+      }),
+      this.prismaService.user.count({ where }),
+    ]);
+
+    const totalPages = Math.max(1, Math.ceil(total / query.pageSize));
+    return {
+      items: rows.map((row) => this.toUserResponseDto(row)),
+      total,
+      page: query.page,
+      pageSize: query.pageSize,
+      totalPages,
+    };
+  }
+
   async create(input: CreateUserDto, actor: AuthenticatedUser): Promise<UserResponseDto> {
     if (actor.role !== 'ADMIN') {
       throw new ForbiddenError('Only ADMIN can create users from this endpoint');
@@ -71,7 +109,9 @@ export class UserService {
     });
 
     if (existingUser) {
-      throw new ConflictError('Email already exists');
+      throw new ConflictError('Un utilisateur avec cet email existe deja.', {
+        businessCode: 'USER_EMAIL_ALREADY_EXISTS',
+      });
     }
 
     const roleId = await this.resolveRoleId(input.role);
@@ -138,7 +178,9 @@ export class UserService {
       });
 
       if (existingByEmail && existingByEmail.id !== id) {
-        throw new ConflictError('Email already exists');
+        throw new ConflictError('Un utilisateur avec cet email existe deja.', {
+          businessCode: 'USER_EMAIL_ALREADY_EXISTS',
+        });
       }
     }
 

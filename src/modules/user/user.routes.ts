@@ -17,6 +17,14 @@ type UserRouteGuards = {
 export function createUserRoutes(controller: UserController, guards: UserRouteGuards): Router {
   const router = Router();
 
+  router.get(
+    '/beneficiaries',
+    guards.requireAuth,
+    guards.requireRole('ADMIN'),
+    guards.requirePermission('BENEFICIARY', 'READ'),
+    controller.listBeneficiaries,
+  );
+
   router.get('/users/by-email', controller.findByEmail);
   router.get('/users/:id', controller.findById);
   router.post(

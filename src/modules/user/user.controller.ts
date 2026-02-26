@@ -4,11 +4,26 @@ import { asyncHandler } from '../../core/http/async-handler';
 import { parseCreateUserDto } from './dto/create-user.dto';
 import { parseEditUserDto } from './dto/edit-user.dto';
 import { parseFindUserByEmailDto } from './dto/find-user-by-email.dto';
+import { parseListBeneficiariesQueryDto } from './dto/list-beneficiaries-query.dto';
 import { parseUserIdParamDto } from './dto/user-id-param.dto';
 import type { UserService } from './user.service';
 
 export class UserController {
   constructor(private readonly userService: UserService) {}
+
+  listBeneficiaries = asyncHandler(async (req: Request, res: Response) => {
+    const query = parseListBeneficiariesQueryDto(req.query);
+    const result = await this.userService.listBeneficiaries(query);
+    res.status(200).json({
+      data: result.items,
+      pagination: {
+        total: result.total,
+        page: result.page,
+        pageSize: result.pageSize,
+        totalPages: result.totalPages,
+      },
+    });
+  });
 
   findById = asyncHandler(async (req: Request, res: Response) => {
     const id = parseUserIdParamDto(req.params);
