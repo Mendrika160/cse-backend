@@ -70,6 +70,45 @@ export class BudgetService {
     return this.toBudgetResponseDto(budget);
   }
 
+  async create(input: UpsertBudgetDto, actorId: string): Promise<BudgetResponseDto> {
+    const existing = await this.prisma.budget.findUnique({
+      where: { year: input.year },
+      select: { id: true },
+    });
+
+    if (existing) {
+      throw new ConflictError(`Un budget existe deja pour l annee ${input.year}.`, {
+        businessCode: 'BUDGET_ALREADY_EXISTS',
+        year: input.year,
+      });
+    }
+
+    const created = await this.prisma.budget.create({
+      data: {
+        year: input.year,
+        totalAmount: input.totalAmount,
+        remainingAmount: input.totalAmount,
+        reservedAmount: 0,
+      },
+      select: budgetSelect,
+    });
+
+    await this.auditLogService.log({
+      userId: actorId,
+      action: 'BUDGET_CREATED',
+      resource: 'BUDGET',
+      resourceId: String(created.year),
+      metadata: {
+        totalAmount: created.totalAmount,
+        remainingAmount: created.remainingAmount,
+        reservedAmount: created.reservedAmount,
+        availableAmount: created.remainingAmount - created.reservedAmount,
+      },
+    });
+
+    return this.toBudgetResponseDto(created);
+  }
+
   async upsert(input: UpsertBudgetDto, actorId: string): Promise<BudgetResponseDto> {
     const existing = await this.prisma.budget.findUnique({
       where: { year: input.year },
@@ -77,37 +116,14 @@ export class BudgetService {
     });
 
     if (!existing) {
-      const created = await this.prisma.budget.create({
-        data: {
-          year: input.year,
-          totalAmount: input.totalAmount,
-          remainingAmount: input.totalAmount,
-          reservedAmount: 0,
-        },
-        select: budgetSelect,
-      });
-
-      await this.auditLogService.log({
-        userId: actorId,
-        action: 'BUDGET_UPDATED',
-        resource: 'BUDGET',
-        resourceId: String(created.year),
-        metadata: {
-          totalAmount: created.totalAmount,
-          remainingAmount: created.remainingAmount,
-          reservedAmount: created.reservedAmount,
-          availableAmount: created.remainingAmount - created.reservedAmount,
-        },
-      });
-
-      return this.toBudgetResponseDto(created);
+      throw new NotFoundError(`Aucun budget trouve pour l annee ${input.year}.`);
     }
 
     const spent = existing.totalAmount - existing.remainingAmount;
     const committed = spent + existing.reservedAmount;
     if (input.totalAmount < committed) {
       throw new ConflictError(
-        `Cannot set totalAmount below consumed + reserved amount (${committed}) for year ${input.year}`,
+        `Le total du budget ne peut pas etre inferieur au montant deja engage (${committed}).`,
         {
           businessCode: 'BUDGET_TOTAL_BELOW_COMMITTED',
           year: input.year,

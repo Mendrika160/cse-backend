@@ -20,6 +20,14 @@ export function createBudgetRoutes(controller: BudgetController, guards: BudgetR
     controller.list,
   );
 
+  router.post(
+    '/budgets',
+    guards.requireAuth,
+    guards.requireRole('ADMIN'),
+    guards.requirePermission('BUDGET', 'UPDATE'),
+    controller.create,
+  );
+
   router.get(
     '/budget',
     guards.requireAuth,

@@ -29,6 +29,16 @@ export class BudgetController {
     res.status(200).json({ data });
   });
 
+  create = asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user) {
+      throw new UnauthorizedError('Authentication required');
+    }
+
+    const input = parseUpsertBudgetDto(req.body);
+    const data = await this.budgetService.create(input, req.user.id);
+    res.status(201).json({ data });
+  });
+
   upsert = asyncHandler(async (req: Request, res: Response) => {
     if (!req.user) {
       throw new UnauthorizedError('Authentication required');
