@@ -4,6 +4,7 @@ import type { PrismaClient } from '../../generated/prisma/client';
 import type { AuditLogService } from '../audit-log/audit-log.service';
 import type { PrismaService } from '../prisma/prisma.service';
 import type { BudgetResponseDto } from './dto/budget-response.dto';
+import type { ListBudgetQueryDto } from './dto/list-budget-query.dto';
 import type { UpsertBudgetDto } from './dto/upsert-budget.dto';
 
 const budgetSelect = {
@@ -24,6 +25,36 @@ export class BudgetService {
 
   private get prisma(): PrismaClient {
     return this.prismaService as unknown as PrismaClient;
+  }
+
+  async list(
+    query: ListBudgetQueryDto,
+  ): Promise<{
+    items: BudgetResponseDto[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }> {
+    const skip = (query.page - 1) * query.pageSize;
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.budget.findMany({
+        orderBy: { year: 'desc' },
+        skip,
+        take: query.pageSize,
+        select: budgetSelect,
+      }),
+      this.prisma.budget.count(),
+    ]);
+
+    const totalPages = Math.max(1, Math.ceil(total / query.pageSize));
+    return {
+      items: rows.map((row) => this.toBudgetResponseDto(row)),
+      total,
+      page: query.page,
+      pageSize: query.pageSize,
+      totalPages,
+    };
   }
 
   async getByYear(year: number): Promise<BudgetResponseDto> {

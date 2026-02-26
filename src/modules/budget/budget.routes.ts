@@ -13,6 +13,14 @@ export function createBudgetRoutes(controller: BudgetController, guards: BudgetR
   const router = createRouter();
 
   router.get(
+    '/budgets',
+    guards.requireAuth,
+    guards.requireRole('ADMIN'),
+    guards.requirePermission('BUDGET', 'READ'),
+    controller.list,
+  );
+
+  router.get(
     '/budget',
     guards.requireAuth,
     guards.requireRole('ADMIN'),
