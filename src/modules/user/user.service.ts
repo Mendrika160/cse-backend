@@ -109,7 +109,7 @@ export class UserService {
     });
 
     if (existingUser) {
-      throw new ConflictError('Un utilisateur avec cet email existe deja.', {
+      throw new ConflictError('Un utilisateur avec cet email existe déjà.', {
         businessCode: 'USER_EMAIL_ALREADY_EXISTS',
       });
     }
@@ -178,7 +178,7 @@ export class UserService {
       });
 
       if (existingByEmail && existingByEmail.id !== id) {
-        throw new ConflictError('Un utilisateur avec cet email existe deja.', {
+        throw new ConflictError('Un utilisateur avec cet email existe déjà.', {
           businessCode: 'USER_EMAIL_ALREADY_EXISTS',
         });
       }

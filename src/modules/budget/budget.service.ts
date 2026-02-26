@@ -77,7 +77,7 @@ export class BudgetService {
     });
 
     if (existing) {
-      throw new ConflictError(`Un budget existe deja pour l annee ${input.year}.`, {
+      throw new ConflictError(`Un budget existe déjà pour l'année ${input.year}.`, {
         businessCode: 'BUDGET_ALREADY_EXISTS',
         year: input.year,
       });
@@ -116,14 +116,14 @@ export class BudgetService {
     });
 
     if (!existing) {
-      throw new NotFoundError(`Aucun budget trouve pour l annee ${input.year}.`);
+      throw new NotFoundError(`Aucun budget trouvé pour l'année ${input.year}.`);
     }
 
     const spent = existing.totalAmount - existing.remainingAmount;
     const committed = spent + existing.reservedAmount;
     if (input.totalAmount < committed) {
       throw new ConflictError(
-        `Le total du budget ne peut pas etre inferieur au montant deja engage (${committed}).`,
+        `Le total du budget ne peut pas être inférieur au montant déjà engagé (${committed}).`,
         {
           businessCode: 'BUDGET_TOTAL_BELOW_COMMITTED',
           year: input.year,
